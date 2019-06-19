@@ -1,0 +1,78 @@
+version: "2.1"
+services:
+    odoo:
+        build:
+            context: ./odoo
+        image: chouettecoop/odoo
+        container_name: odoo
+        depends_on:
+            - db
+            - smtp
+        environment:
+            PGDATABASE: odoo_db
+        tty: true
+        volumes:
+            - filestore:/opt/odoo/data:z
+        networks:
+            default:
+            inverseproxy_shared:
+        restart: unless-stopped
+        labels:
+            traefik.docker.network: "inverseproxy_shared"
+            traefik.enable: "true"
+            traefik.frontend.headers.STSSeconds: "15552000"
+            traefik.frontend.headers.STSIncludeSubdomains: "true"
+            traefik.frontend.headers.STSPreload: "true"
+            traefik.frontend.passHostHeader: "true"
+            traefik.port: "8069"
+            traefik.dbmanager.frontend.auth.basic.users:
+                "odoo:$$2b$$10$$VdDh/UZQRalpBq/BbsFiguyzKsl5Ik6qN9VOwu1dq1SDdv0Sgx6/q"
+            traefik.dbmanager.frontend.rule:
+                "Host:testchouette.le-filament.com;PathPrefix:/web/database/"
+            traefik.dbselector.frontend.rule:
+                "Host:testchouette.le-filament.com;PathPrefix:/web/database/{p:selector|list}"
+            traefik.websiteinfo.frontend.auth.basic.users:
+                "odoo:$$2b$$10$$VdDh/UZQRalpBq/BbsFiguyzKsl5Ik6qN9VOwu1dq1SDdv0Sgx6/q"
+            traefik.websiteinfo.frontend.rule:
+                "Host:testchouette.le-filament.com;Path:/website/info"
+            traefik.www.frontend.rule: "Host:testchouette.le-filament.com"
+
+    db:
+        image: postgres:10-alpine
+        container_name: odoo_db
+        environment:
+            POSTGRES_USER: "odoo"
+            POSTGRES_PASSWORD: "aoklcn_aBOD21oiiazd.."
+        volumes:
+            - db:/var/lib/postgresql/data:z
+        restart: unless-stopped
+
+    smtp:
+        image: mailhog/mailhog
+        container_name: odoo_smtp
+        networks:
+            default:
+            inverseproxy_smtp:
+        restart: unless-stopped
+        labels:
+            traefik.docker.network: "inverseproxy_smtp"
+            traefik.enable: "true"
+            traefik.frontend.passHostHeader: "true"
+            traefik.port: "8025"
+            traefik.frontend.rule: "Host:testchouette.le-filament.com;PathPrefixStrip:/smtp/"
+            traefik.frontend.auth.basic.users:
+                "odoo:$$2b$$10$$VdDh/UZQRalpBq/BbsFiguyzKsl5Ik6qN9VOwu1dq1SDdv0Sgx6/q"
+
+networks:
+    default:
+        driver_opts:
+            encrypted: 1
+    inverseproxy_shared:
+        external: true
+    inverseproxy_smtp:
+        external: true
+
+volumes:
+    filestore:
+    db:
+
